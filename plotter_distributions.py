@@ -15,6 +15,8 @@ import pandas as pd
 
 DISTRIBUTION_INPUT = "distribution_samples.csv"
 BENCHMARK_INPUT = "gpu_benchmark_cov_comparison.csv"
+GOOGLENET_INPUT = "googlenet_gpu_benchmark.csv"
+GOOGLENET_DES_INPUT = "googlenet_des_cov_results.csv"
 BENCHMARK_BATCH_SIZE = None  # Set an integer to override the maximum observed size.
 
 
@@ -72,7 +74,64 @@ def load_benchmark_results():
     except (OSError, pd.errors.ParserError, ValueError) as error:
         print(
             f"Could not read {BENCHMARK_INPUT}: {error}; skipping all "
-            f"GPU benchmark plots."
+            "GPU benchmark plots."
+        )
+    return None
+
+
+def load_googlenet_results():
+    """Load real GoogLeNet GPU measurements when available."""
+    try:
+        results = pd.read_csv(GOOGLENET_INPUT)
+        required = {
+            "gpu_name",
+            "batch_size",
+            "mean_latency_ms",
+            "std_latency_ms",
+            "throughput_img_s",
+            "peak_memory_mb",
+        }
+        missing = required.difference(results.columns)
+        if missing:
+            print(
+                f"{GOOGLENET_INPUT} is missing columns {sorted(missing)}; "
+                "GoogLeNet plots will be skipped."
+            )
+            return None
+        return results
+    except FileNotFoundError:
+        print(f"{GOOGLENET_INPUT} was not found; skipping GoogLeNet plots.")
+    except (OSError, pd.errors.ParserError, ValueError) as error:
+        print(f"Could not read {GOOGLENET_INPUT}: {error}; skipping GoogLeNet plots.")
+    return None
+
+
+def load_googlenet_des_results():
+    """Load GoogLeNet-driven DES CoV results when available."""
+    try:
+        results = pd.read_csv(GOOGLENET_DES_INPUT)
+        required = {
+            "gpu_name",
+            "batch_size",
+            "cov",
+            "mean_E_W",
+            "mean_E_L",
+            "mean_P_block",
+        }
+        missing = required.difference(results.columns)
+        if missing:
+            print(
+                f"{GOOGLENET_DES_INPUT} is missing columns {sorted(missing)}; "
+                "GoogLeNet DES plots will be skipped."
+            )
+            return None
+        return results
+    except FileNotFoundError:
+        print(f"{GOOGLENET_DES_INPUT} was not found; skipping GoogLeNet DES plots.")
+    except (OSError, pd.errors.ParserError, ValueError) as error:
+        print(
+            f"Could not read {GOOGLENET_DES_INPUT}: {error}; "
+            "skipping GoogLeNet DES plots."
         )
     return None
 
@@ -321,6 +380,94 @@ def plot_gpu_benchmark(results):
     plt.close(figure)
 
 
+def plot_googlenet_results(results):
+    """Plot measured GoogLeNet latency, throughput, and sampled memory."""
+    figure, axes = plt.subplots(1, 3, figsize=(15, 4))
+    for gpu_name, group in results.groupby("gpu_name"):
+        group = group.sort_values("batch_size")
+        axes[0].errorbar(
+            group["batch_size"],
+            group["mean_latency_ms"],
+            yerr=group["std_latency_ms"],
+            marker="o",
+            capsize=3,
+            label=gpu_name,
+        )
+        axes[1].plot(
+            group["batch_size"], group["throughput_img_s"], marker="o", label=gpu_name
+        )
+        axes[2].plot(
+            group["batch_size"], group["peak_memory_mb"], marker="o", label=gpu_name
+        )
+    axes[0].set_title("GoogLeNet measured latency")
+    axes[1].set_title("GoogLeNet throughput")
+    axes[2].set_title("GoogLeNet sampled GPU memory")
+    axes[0].set_ylabel("Latency (ms)")
+    axes[1].set_ylabel("Images/sec")
+    axes[2].set_ylabel("Device used memory (MB)")
+    for axis in axes:
+        axis.set_xlabel("Batch size")
+        axis.grid(alpha=0.25)
+        axis.legend()
+    figure.suptitle("Actual GoogLeNet ONNX Runtime CUDA benchmark")
+    figure.tight_layout()
+    figure.savefig("googlenet_gpu_benchmark.png", dpi=200)
+    plt.close(figure)
+
+
+def plot_googlenet_des_results(results):
+    """Plot measured-service DES latency, blocking, and combined comparison."""
+    for value_column, title, output_name, y_label in (
+        (
+            "mean_E_W",
+            "GoogLeNet service variability and expected latency",
+            "googlenet_cov_latency.png",
+            "Expected wait/service latency E[W] (ms)",
+        ),
+        (
+            "mean_P_block",
+            "GoogLeNet service variability and blocking",
+            "googlenet_cov_blocking.png",
+            "Blocking probability",
+        ),
+    ):
+        figure, axis = plt.subplots(figsize=(8, 5))
+        for cov, group in results.groupby("cov"):
+            group = group.sort_values("batch_size")
+            label = f"CoV={cov:g}" if cov else "CoV=0 (deterministic)"
+            axis.plot(group["batch_size"], group[value_column],
+                      marker="o", label=label)
+        axis.set_title(title)
+        axis.set_xlabel("Batch size")
+        axis.set_ylabel(y_label)
+        axis.legend()
+        axis.grid(alpha=0.25)
+        figure.tight_layout()
+        figure.savefig(output_name, dpi=200)
+        plt.close(figure)
+
+    figure, axes = plt.subplots(1, 2, figsize=(12, 4))
+    for cov, group in results.groupby("cov"):
+        group = group.sort_values("batch_size")
+        label = f"CoV={cov:g}" if cov else "CoV=0 (deterministic)"
+        axes[0].plot(group["batch_size"], group["mean_E_W"],
+                     marker="o", label=label)
+        axes[1].plot(group["batch_size"], group["mean_P_block"],
+                     marker="o", label=label)
+    axes[0].set_title("Expected latency")
+    axes[1].set_title("Blocking probability")
+    for axis in axes:
+        axis.set_xlabel("Batch size")
+        axis.grid(alpha=0.25)
+        axis.legend()
+    axes[0].set_ylabel("E[W] (ms)")
+    axes[1].set_ylabel("P(block)")
+    figure.suptitle("GoogLeNet BatOpt-style CoV comparison")
+    figure.tight_layout()
+    figure.savefig("googlenet_cov_comparison.png", dpi=200)
+    plt.close(figure)
+
+
 def main():
     """Load available inputs and generate all applicable plots."""
     samples = load_distribution_samples()
@@ -330,6 +477,14 @@ def main():
     benchmark_results = load_benchmark_results()
     if benchmark_results is not None:
         plot_gpu_benchmark(benchmark_results)
+
+    googlenet_results = load_googlenet_results()
+    if googlenet_results is not None:
+        plot_googlenet_results(googlenet_results)
+
+    googlenet_des_results = load_googlenet_des_results()
+    if googlenet_des_results is not None:
+        plot_googlenet_des_results(googlenet_des_results)
 
 
 if __name__ == "__main__":
