@@ -18,7 +18,7 @@ namespace {
 
 constexpr int kWarmupIterations = 10;
 constexpr int kTimedIterations = 50;
-constexpr int kWorkPerImage = 4096;
+constexpr int kWorkPerImage = 262144;
 constexpr int kMaxBatchSize = 32;
 constexpr int kDesRepetitions = 5;
 constexpr int kDesArrivals = 10000;
