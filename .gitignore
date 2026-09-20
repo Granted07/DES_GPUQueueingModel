@@ -10,7 +10,6 @@ googlenet_gpu_benchmark.csv
 googlenet_gpu_benchmark_metadata.json
 googlenet_des_cov_results.csv
 googlenet_des_metadata.json
-models/googlenet.onnx
 googlenet_gpu_benchmark.png
 dist_exponential_interarrival.png
 dist_gamma_service_cov.png
@@ -20,3 +19,5 @@ googlenet_cov_blocking.png
 googlenet_cov_comparison.png
 /.idea/
 /.idea
+/_pycache_
+/_pycache_/
