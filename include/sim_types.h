@@ -19,6 +19,7 @@ typedef struct {
     double cache_lookup_latency;
     int enable_cache_sim;
     int warmup_arrivals;
+    double service_time_cov;
 } SimulationConfig;
 
 typedef struct {

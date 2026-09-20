@@ -1,5 +1,7 @@
 #include "sim_core.h"
 
+#include "gamma_random.h"
+
 #include <math.h>
 #include <stdlib.h>
 
@@ -41,7 +43,7 @@ static double uniform_random(void)
     return ((double)rand() + 1.0) / ((double)RAND_MAX + 2.0);
 }
 
-static double exponential_interarrival(double lambda)
+double exponential_interarrival(double lambda)
 {
     return -log(uniform_random()) / lambda;
 }
@@ -76,10 +78,14 @@ static void start_batch(const SimulationConfig *config,
                         int batch_size)
 {
     int index;
+    double deterministic_mean = config->service_slope * (double)batch_size +
+                                config->service_intercept;
     batch->size = batch_size;
     batch->departure_time = start_time +
-        config->service_slope * (double)batch_size +
-        config->service_intercept;
+        (config->service_time_cov > 0.0
+             ? gamma_random_from_mean_cov(deterministic_mean,
+                                          config->service_time_cov)
+             : deterministic_mean);
     batch->in_service = 1;
     for (index = 0; index < batch_size; index++) {
         batch->arrival_times[index] = ring_pop(queue);
