@@ -1,0 +1,8 @@
+/build/
+/cmake-build-*/
+*.user
+*.suo
+queue_cache_results.csv
+results/*.csv
+/.idea/
+/.idea
