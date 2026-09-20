@@ -130,7 +130,10 @@ SimulationResults simulate(const SimulationConfig *config)
                 if (generated_arrivals == config->warmup_arrivals + 1) {
                     statistics.last_event_time = current_time;
                 } else {
-                    update_queue_area(&statistics, current_time, queue.size);
+                    int number_in_system = queue.size +
+                        (batch.in_service ? batch.size : 0);
+                    update_queue_area(&statistics, current_time,
+                                      number_in_system);
                 }
                 statistics.total_arrived++;
             }
@@ -162,7 +165,10 @@ SimulationResults simulate(const SimulationConfig *config)
         } else {
             current_time = batch.departure_time;
             if (generated_arrivals > config->warmup_arrivals) {
-                update_queue_area(&statistics, current_time, queue.size);
+                int number_in_system = queue.size +
+                    (batch.in_service ? batch.size : 0);
+                update_queue_area(&statistics, current_time,
+                                  number_in_system);
                 complete_batch(&batch, &statistics);
             } else {
                 batch.size = 0;
