@@ -33,10 +33,17 @@ def gpu_metadata():
 
         pynvml.nvmlInit()
         handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-        name = pynvml.nvmlDeviceGetName(handle).decode()
+
+        raw_name = pynvml.nvmlDeviceGetName(handle)
+        name = raw_name.decode() if isinstance(raw_name, bytes) else raw_name
+
         memory = pynvml.nvmlDeviceGetMemoryInfo(handle)
-        driver = pynvml.nvmlSystemGetDriverVersion().decode()
-        return name, memory.used / (1024**2), driver, pynvml, handle
+        baseline_memory = memory.used / (1024 ** 2)
+
+        driver = pynvml.nvmlSystemGetDriverVersion()
+        if isinstance(driver, bytes):
+            driver = driver.decode()
+        return name, baseline_memory, driver, pynvml, handle
     except (ImportError, RuntimeError, OSError):
         return "unknown", float("nan"), "unknown", None, None
 
