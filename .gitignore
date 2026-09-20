@@ -4,5 +4,7 @@
 *.suo
 queue_cache_results.csv
 results/*.csv
+gpu_benchmark_predictions.csv
+gpu_benchmark_cov_comparison.csv
 /.idea/
 /.idea
